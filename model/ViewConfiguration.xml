@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ViewConfigurationCollection>
+    <viewConfigurations>
+        <viewConfiguration>
+            <classId>com.informatica.ldm.openapi.endpoint</classId>
+        </viewConfiguration>
+        <viewConfiguration>
+            <classId>com.informatica.ldm.openapi.info</classId>
+        </viewConfiguration>
+        <viewConfiguration>
+            <classId>com.informatica.ldm.openapi.schema</classId>
+        </viewConfiguration>
+        <viewConfiguration>
+            <classId>com.informatica.ldm.openapi.property</classId>
+        </viewConfiguration> 
+    </viewConfigurations>
+</ViewConfigurationCollection>

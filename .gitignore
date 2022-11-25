@@ -1,0 +1,17 @@
+__pycache__/*
+backup/*
+bin/*
+include/*
+lib/*
+lib64/**
+lib64
+pip-selfcheck.json
+pyvenv.cfg
+parser/__pycache__/*
+model/__pycache__/*
+model/icons.zip
+test*/*
+dist/*
+build/*
+openapi.spec
+*.egg-info/*
