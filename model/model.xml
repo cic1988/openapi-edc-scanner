@@ -8,7 +8,7 @@
             <version>1</version>
         </requiredPackage>
     </requiredPackages>
-    <version>12</version>
+    <version>14</version>
     <classes>
         <class>
             <name>endpoint</name>
