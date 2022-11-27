@@ -8,7 +8,7 @@
             <version>1</version>
         </requiredPackage>
     </requiredPackages>
-    <version>11</version>
+    <version>12</version>
     <classes>
         <class>
             <name>endpoint</name>
@@ -35,7 +35,18 @@
         <class>
             <name>path</name>
             <label>path</label>
-            <description>Path of OpenAPI</description>
+            <description>Path Item of OpenAPI</description>
+            <isFirstClass>true</isFirstClass>
+            <boost>LOW</boost>
+            <superClasses>
+                <superClass>core.DataSet</superClass>
+            </superClasses>
+            <deprecated>false</deprecated>
+        </class>
+        <class>
+            <name>operation</name>
+            <label>operation</label>
+            <description>Operation of Path of OpenAPI</description>
             <isFirstClass>true</isFirstClass>
             <boost>LOW</boost>
             <superClasses>
@@ -229,6 +240,18 @@
             <name>endpointpath</name>
             <fromClass>com.informatica.ldm.openapi.endpoint</fromClass>
             <toClass>com.informatica.ldm.openapi.path</toClass>
+            <fromLabel>endpoint</fromLabel>
+            <toLabel>path</toLabel>
+            <associationKinds>
+                <associationKind>core.ParentChild</associationKind>
+            </associationKinds>
+            <deprecated>false</deprecated>
+            <aggregate>false</aggregate>
+        </association>
+        <association>
+            <name>pathoperation</name>
+            <fromClass>com.informatica.ldm.openapi.path</fromClass>
+            <toClass>com.informatica.ldm.openapi.operation</toClass>
             <fromLabel>endpoint</fromLabel>
             <toLabel>path</toLabel>
             <associationKinds>

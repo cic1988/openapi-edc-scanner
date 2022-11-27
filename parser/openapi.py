@@ -63,6 +63,7 @@ class OpenAPIParser():
             self.convert_objects_info(writer)
             self.convert_objects_externalDocs(writer)
             self.convert_objects_schema(writer)
+            self.convert_objects_pathitem(writer)
 
         if os.path.exists(tmp_file):
             os.rename(tmp_file, os.path.abspath(self._dir) + '/objects.csv')
@@ -95,6 +96,7 @@ class OpenAPIParser():
             self.convert_links_resourceendpoint(writer)
             self.convert_links_endpointinfo(writer)
             self.convert_links_endpointschemaproperty(writer)
+            self.convert_links_endpointpathitemoperation(writer)
          
         if os.path.exists(tmp_file):
             os.rename(tmp_file, os.path.abspath(self._dir) + '/links.csv')
@@ -181,6 +183,29 @@ class OpenAPIParser():
                 prop[self._model._attr_property_example] = propertyvalue.get('example')
                 writer.writerow(prop)
     
+    def convert_objects_pathitem(self, writer):
+        paths = self.safe_get('paths')
+
+        if not paths:
+            logger.warning('[WARNING] no paths detected')
+            return
+        
+        for pathitemname, pathitemvalue in paths.items():
+            pathitem = copy.deepcopy(self._objects_head)
+            pathitem['class'] = self._model._class_pathitem
+            pathitem['core.name'] = pathitemname.replace('/', '', 1)
+            pathitem['identity'] = self._endpoint + '/paths/' + pathitem['core.name']
+            pathitem['core.description'] = ''
+            writer.writerow(pathitem)
+
+            for operationname, operationvalue in pathitemvalue.items():
+                operation = copy.deepcopy(self._objects_head)
+                operation['class'] = self._model._class_operation
+                operation['core.name'] = operationname
+                operation['identity'] = pathitem['identity'] + '/' + operation['core.name']
+                operation['core.description'] = operationvalue.get('description')
+                writer.writerow(operation)
+    
     def convert_links_resourceendpoint(self, writer):
         toplevel = copy.deepcopy(self._links_head)
         toplevel['association'] = self._model._association_resourceparanchild
@@ -234,5 +259,25 @@ class OpenAPIParser():
                     referenceproperty['fromObjectIdentity'] = referenceschema['fromObjectIdentity'] + '/id'
                     referenceproperty['toObjectIdentity'] = schemaproperty['toObjectIdentity']
                     writer.writerow(referenceproperty)
+    
+    def convert_links_endpointpathitemoperation(self, writer):
+        paths = self.safe_get('paths')
 
+        if not paths:
+            logger.warning('[WARNING] no paths detected')
+            return
+        
+        for pathitemname, pathitemvalue in paths.items():
+            endpointpathitem = copy.deepcopy(self._links_head)
+            endpointpathitem['association'] = self._model._association_endpointpathitem
+            endpointpathitem['fromObjectIdentity'] = self._endpoint
+            endpointpathitem['toObjectIdentity'] = self._endpoint + '/paths/' + pathitemname.replace('/', '', 1)
+            writer.writerow(endpointpathitem)
+
+            for operationname, operationvalue in pathitemvalue.items():
+                pathitemoperation = copy.deepcopy(self._links_head)
+                pathitemoperation['association'] = self._model._association_pathitemoperation
+                pathitemoperation['fromObjectIdentity'] = endpointpathitem['toObjectIdentity'] 
+                pathitemoperation['toObjectIdentity'] = pathitemoperation['fromObjectIdentity'] + '/' + operationname
+                writer.writerow(pathitemoperation)
 

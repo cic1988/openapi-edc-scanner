@@ -11,6 +11,8 @@ class OpenAPIModel():
         self._class_externaldocs = self._packagename + '.externaldocs'
         self._class_schema = self._packagename + '.schema'
         self._class_property = self._packagename + '.property'
+        self._class_pathitem = self._packagename + '.path'
+        self._class_operation = self._packagename + '.operation'
 
         """ 2) attribute """
         self._attr_endpoint_version = self._packagename + '.openapi'
@@ -36,6 +38,8 @@ class OpenAPIModel():
         self._association_endpointinfo = self._packagename + '.endpointinfo'
         self._association_enndpointschema = self._packagename + '.endpointschema'
         self._association_schemaproperty = self._packagename + '.schemaproperty'
+        self._association_endpointpathitem = self._packagename + '.endpointpath'
+        self._association_pathitemoperation = self._packagename + '.pathoperation'
 
         """ 4) lineage (within the data source) """
         self._association_datasourcedataflow = 'core.DataSourceDataFlow'
