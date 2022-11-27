@@ -9,7 +9,7 @@ pip-selfcheck.json
 pyvenv.cfg
 parser/__pycache__/*
 model/__pycache__/*
-model/icons.zip
+model/*.zip
 test*/*
 dist/*
 build/*

@@ -130,7 +130,7 @@ class OpenAPIParser():
     
     def convert_objects_info(self, writer):
         deswithlinebreak = self.safe_get('info.description')
-        if len(deswithlinebreak) > 0:
+        if deswithlinebreak:
             deswithlinebreak = deswithlinebreak.replace('\n', '\\n')
 
         info = copy.deepcopy(self._objects_head)
@@ -158,11 +158,15 @@ class OpenAPIParser():
     def convert_objects_schema(self, writer):
         schemas = self.safe_get('components.schemas')
 
+        if not schemas:
+            logger.warning('[WARNING] no schemas detected')
+            return
+
         for schemaname, schemavalue in schemas.items():
             schema = copy.deepcopy(self._objects_head)
             schema['class'] = self._model._class_schema
             schema['core.name'] = schemaname
-            schema['identity'] = self._endpoint + '/Schemas/' + schema['core.name']
+            schema['identity'] = self._endpoint + '/components/schemas/' + schema['core.name']
             schema['core.description'] = schema['identity']
             writer.writerow(schema)
 
@@ -171,6 +175,7 @@ class OpenAPIParser():
                 prop['class'] = self._model._class_property
                 prop['core.name'] = propertyname
                 prop['identity'] = schema['identity'] + '/' + prop['core.name']
+                prop['core.description'] = propertyvalue.get('description')
                 prop[self._model._attr_property_datatype] = propertyvalue.get('type')
                 prop[self._model._attr_property_dataformat] = propertyvalue.get('format')
                 prop[self._model._attr_property_example] = propertyvalue.get('example')
@@ -192,11 +197,15 @@ class OpenAPIParser():
     def convert_links_endpointschemaproperty(self, writer):
         schemas = self.safe_get('components.schemas')
 
+        if not schemas:
+            logger.warning('[WARNING] no schemas detected')
+            return
+
         for schemaname, schemavalue in schemas.items():
             endpointschema = copy.deepcopy(self._links_head)
             endpointschema['association'] = self._model._association_enndpointschema
             endpointschema['fromObjectIdentity'] = self._endpoint
-            endpointschema['toObjectIdentity'] = self._endpoint + '/Schemas/' + schemaname
+            endpointschema['toObjectIdentity'] = self._endpoint + '/components/schemas/' + schemaname
             writer.writerow(endpointschema)
 
             for propertyname, propertyvalue in schemavalue['properties'].items():
@@ -205,4 +214,25 @@ class OpenAPIParser():
                 schemaproperty['fromObjectIdentity'] = endpointschema['toObjectIdentity']
                 schemaproperty['toObjectIdentity'] = schemaproperty['fromObjectIdentity'] + '/' + propertyname
                 writer.writerow(schemaproperty)
+
+                if propertyvalue.get('type') == 'object':
+                    refs = list(schemas.keys())[list(schemas.values()).index(propertyvalue)]
+
+                    if not refs:
+                        logger.warning(f'[WARNING] referenced object {propertyname} not found in schemas')
+                        continue
+
+                    referenceschema = copy.deepcopy(self._links_head)
+                    referenceschema['association'] = self._model._association_datasetdataflow
+                    referenceschema['fromObjectIdentity'] = self._endpoint + '/components/schemas/' + refs
+                    referenceschema['toObjectIdentity'] = schemaproperty['fromObjectIdentity']
+                    writer.writerow(referenceschema)
+
+                    referenceproperty = copy.deepcopy(self._links_head)
+                    referenceproperty['association'] = self._model._association_directionaldataflow
+                    # TODO: always link to id?
+                    referenceproperty['fromObjectIdentity'] = referenceschema['fromObjectIdentity'] + '/id'
+                    referenceproperty['toObjectIdentity'] = schemaproperty['toObjectIdentity']
+                    writer.writerow(referenceproperty)
+
 

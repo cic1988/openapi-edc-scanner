@@ -36,3 +36,8 @@ class OpenAPIModel():
         self._association_endpointinfo = self._packagename + '.endpointinfo'
         self._association_enndpointschema = self._packagename + '.endpointschema'
         self._association_schemaproperty = self._packagename + '.schemaproperty'
+
+        """ 4) lineage (within the data source) """
+        self._association_datasourcedataflow = 'core.DataSourceDataFlow'
+        self._association_datasetdataflow = 'core.DataSetDataFlow'
+        self._association_directionaldataflow = 'core.DirectionalDataFlow'
