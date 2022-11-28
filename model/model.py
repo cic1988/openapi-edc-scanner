@@ -38,6 +38,7 @@ class OpenAPIModel():
         self._association_endpointinfo = self._packagename + '.endpointinfo'
         self._association_enndpointschema = self._packagename + '.endpointschema'
         self._association_schemaproperty = self._packagename + '.schemaproperty'
+        self._association_schemaschema = self._packagename + '.schemaschema'
         self._association_endpointpathitem = self._packagename + '.endpointpath'
         self._association_pathitemoperation = self._packagename + '.pathoperation'
 

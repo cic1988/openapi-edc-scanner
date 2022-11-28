@@ -3,7 +3,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from prance import ResolvingParser, BaseParser
+from prance import ResolvingParser
 from model.model import OpenAPIModel
 
 class OpenAPIParser():
@@ -16,7 +16,7 @@ class OpenAPIParser():
         self._links_head = {}
         self._model = OpenAPIModel()
 
-        parser = ResolvingParser(filepath)
+        parser = ResolvingParser(filepath, resolve_types=0)
         self._spec = parser.specification
         self._dir = dir
 
@@ -65,7 +65,7 @@ class OpenAPIParser():
             self.convert_objects_endpoint(writer)
             self.convert_objects_info(writer)
             self.convert_objects_externalDocs(writer)
-            self.convert_objects_schema(writer)
+            self.convert_objects_schema(self.safe_get('components.schemas'), self._endpoint + '/components/schemas', writer)
             self.convert_objects_pathitem(writer)
 
         if os.path.exists(tmp_file):
@@ -98,7 +98,7 @@ class OpenAPIParser():
             writer.writeheader()
             self.convert_links_resourceendpoint(writer)
             self.convert_links_endpointinfo(writer)
-            self.convert_links_endpointschemaproperty(writer)
+            self.convert_links_endpointschemaproperty(self.safe_get('components.schemas'), self._endpoint, writer)
             self.convert_links_endpointpathitemoperation(writer)
          
         if os.path.exists(tmp_file):
@@ -160,9 +160,7 @@ class OpenAPIParser():
         externalDocs[self._model._attr_externaldocs_url] = self.safe_get('externalDocs.url')
         writer.writerow(externalDocs)
 
-    def convert_objects_schema(self, writer):
-        schemas = self.safe_get('components.schemas')
-
+    def convert_objects_schema(self, schemas, parent, writer):
         if not schemas:
             logger.warning('[WARNING] no schemas detected')
             return
@@ -171,11 +169,23 @@ class OpenAPIParser():
             schema = copy.deepcopy(self._objects_head)
             schema['class'] = self._model._class_schema
             schema['core.name'] = schemaname
-            schema['identity'] = self._endpoint + '/components/schemas/' + schema['core.name']
+            schema['identity'] = parent + '/' + schema['core.name']
             schema['core.description'] = schema['identity']
             writer.writerow(schema)
 
             for propertyname, propertyvalue in schemavalue['properties'].items():
+                # Recursive nested data object possible, e.g.,
+                # "Pet": {
+                #    "properties": {
+                #        "Category": {
+                #            "properties": ...
+                #        }
+                #    }
+                # }
+                if propertyvalue.get('type') == 'object' and '$ref' not in propertyvalue:
+                    self.convert_objects_schema({propertyname: propertyvalue}, schema['identity'], writer)
+                    continue
+
                 prop = copy.deepcopy(self._objects_head)
                 prop['class'] = self._model._class_property
                 prop['core.name'] = propertyname
@@ -222,53 +232,55 @@ class OpenAPIParser():
         endpointinfo['toObjectIdentity'] = self._endpoint + '/' + self._info
         writer.writerow(endpointinfo)
 
-    def convert_links_endpointschemaproperty(self, writer):
-        schemas = self.safe_get('components.schemas')
-
+    def convert_links_endpointschemaproperty(self, schemas, parent, writer):
         if not schemas:
             logger.warning('[WARNING] no schemas detected')
             return
 
         for schemaname, schemavalue in schemas.items():
             endpointschema = copy.deepcopy(self._links_head)
-            endpointschema['association'] = self._model._association_enndpointschema
-            endpointschema['fromObjectIdentity'] = self._endpoint
-            endpointschema['toObjectIdentity'] = self._endpoint + '/components/schemas/' + schemaname
+            endpointschema['fromObjectIdentity'] = parent
+
+            if parent == self._endpoint:
+                endpointschema['association'] = self._model._association_enndpointschema
+                endpointschema['toObjectIdentity'] = endpointschema['fromObjectIdentity'] + '/components/schemas/' + schemaname
+            else:
+                endpointschema['association'] = self._model._association_schemaschema
+                endpointschema['toObjectIdentity'] = endpointschema['fromObjectIdentity'] + '/' + schemaname
             writer.writerow(endpointschema)
 
             for propertyname, propertyvalue in schemavalue['properties'].items():
+
+                if propertyvalue.get('type') == 'object':
+
+                    if '$ref' not in propertyvalue:
+                        self.convert_links_endpointschemaproperty({propertyname: propertyvalue}, endpointschema['toObjectIdentity'], writer)
+                    else:
+                        refs = list(schemas.keys())[list(schemas.values()).index(propertyvalue)]
+                        if not refs:
+                            logger.warning(f'[WARNING] referenced object {propertyname} not found in schemas')
+                            continue
+
+                        referenceschema = copy.deepcopy(self._links_head)
+                        referenceschema['association'] = self._model._association_datasetdataflow
+                        referenceschema['fromObjectIdentity'] = self._endpoint + '/components/schemas/' + refs
+                        referenceschema['toObjectIdentity'] = schemaproperty['fromObjectIdentity']
+                        writer.writerow(referenceschema)
+
+                        referenceproperty = copy.deepcopy(self._links_head)
+                        referenceproperty['association'] = self._model._association_directionaldataflow
+                        # TODO: always link to id?
+                        referenceproperty['fromObjectIdentity'] = referenceschema['fromObjectIdentity'] + '/id'
+                        referenceproperty['toObjectIdentity'] = schemaproperty['toObjectIdentity']
+                        writer.writerow(referenceproperty)
+                    
+                    continue
+
                 schemaproperty = copy.deepcopy(self._links_head)
                 schemaproperty['association'] = self._model._association_schemaproperty
                 schemaproperty['fromObjectIdentity'] = endpointschema['toObjectIdentity']
                 schemaproperty['toObjectIdentity'] = schemaproperty['fromObjectIdentity'] + '/' + propertyname
                 writer.writerow(schemaproperty)
-
-                if propertyvalue.get('type') == 'object':
-
-                    try:
-                        refs = list(schemas.keys())[list(schemas.values()).index(propertyvalue)]
-                    except ValueError as ex:
-                        if 'is not in list' in str(ex):
-                            print(f'[EXCEPTION] object {propertyname} not available in schemas')
-                            # TODO: recursive processing required
-                            continue
-
-                    if not refs:
-                        logger.warning(f'[WARNING] referenced object {propertyname} not found in schemas')
-                        continue
-
-                    referenceschema = copy.deepcopy(self._links_head)
-                    referenceschema['association'] = self._model._association_datasetdataflow
-                    referenceschema['fromObjectIdentity'] = self._endpoint + '/components/schemas/' + refs
-                    referenceschema['toObjectIdentity'] = schemaproperty['fromObjectIdentity']
-                    writer.writerow(referenceschema)
-
-                    referenceproperty = copy.deepcopy(self._links_head)
-                    referenceproperty['association'] = self._model._association_directionaldataflow
-                    # TODO: always link to id?
-                    referenceproperty['fromObjectIdentity'] = referenceschema['fromObjectIdentity'] + '/id'
-                    referenceproperty['toObjectIdentity'] = schemaproperty['toObjectIdentity']
-                    writer.writerow(referenceproperty)
     
     def convert_links_endpointpathitemoperation(self, writer):
         paths = self.safe_get('paths')

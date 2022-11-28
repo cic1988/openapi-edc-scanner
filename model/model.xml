@@ -8,7 +8,7 @@
             <version>1</version>
         </requiredPackage>
     </requiredPackages>
-    <version>14</version>
+    <version>15</version>
     <classes>
         <class>
             <name>endpoint</name>
@@ -278,6 +278,18 @@
             <toClass>com.informatica.ldm.openapi.property</toClass>
             <fromLabel>schema</fromLabel>
             <toLabel>property</toLabel>
+            <associationKinds>
+                <associationKind>core.ParentChild</associationKind>
+            </associationKinds>
+            <deprecated>false</deprecated>
+            <aggregate>false</aggregate>
+        </association>
+        <association>
+            <name>schemaschema</name>
+            <fromClass>com.informatica.ldm.openapi.schema</fromClass>
+            <toClass>com.informatica.ldm.openapi.schema</toClass>
+            <fromLabel>schema</fromLabel>
+            <toLabel>schema</toLabel>
             <associationKinds>
                 <associationKind>core.ParentChild</associationKind>
             </associationKinds>
