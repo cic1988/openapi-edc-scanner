@@ -3,18 +3,21 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from prance import ResolvingParser, BaseParser
 from model.model import OpenAPIModel
 
 class OpenAPIParser():
-    def __init__(self, spec, dir):
-        self._endpoint = 'Endpoint'
+    def __init__(self, endpoint, filepath, dir):
+        self._endpoint = endpoint
         self._info = 'Info'
 
         """ objects.csv / links.csv protocol """
         self._objects_head = {}
         self._links_head = {}
         self._model = OpenAPIModel()
-        self._spec = spec
+
+        parser = ResolvingParser(filepath)
+        self._spec = parser.specification
         self._dir = dir
 
         self._objects_head = {
@@ -241,7 +244,14 @@ class OpenAPIParser():
                 writer.writerow(schemaproperty)
 
                 if propertyvalue.get('type') == 'object':
-                    refs = list(schemas.keys())[list(schemas.values()).index(propertyvalue)]
+
+                    try:
+                        refs = list(schemas.keys())[list(schemas.values()).index(propertyvalue)]
+                    except ValueError as ex:
+                        if 'is not in list' in str(ex):
+                            print(f'[EXCEPTION] object {propertyname} not available in schemas')
+                            # TODO: recursive processing required
+                            continue
 
                     if not refs:
                         logger.warning(f'[WARNING] referenced object {propertyname} not found in schemas')
