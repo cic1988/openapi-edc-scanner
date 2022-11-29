@@ -379,10 +379,18 @@ class Schema(Identifier):
         
         for propertyname, propertyvalue in properties.items():
             if 'properties' in propertyvalue or propertyvalue.get('type') == 'object':
-
                 childschema = Schema(self.id + '/properties/' + propertyname, propertyname, self.spec)
                 childschema._schemavalue = propertyvalue
                 self._children.append(childschema)
+            elif 'items' in propertyvalue and 'properties' in propertyvalue['items']:
+                childschema = Schema(self.id + '/properties/' + propertyname, propertyname, self.spec)
+                childschema._schemavalue = propertyvalue['items']
+                self._children.append(childschema)
+            elif 'items' in propertyvalue and 'properties' not in propertyvalue['items']:
+                childproperty = SchemaProperty(self.id + '/properties/' + propertyname, propertyname, self.spec)
+                childproperty._property = propertyvalue
+                childproperty._datatype = 'array-' + propertyvalue['items'].get('type')
+                self._children.append(childproperty)
             else:
                 childproperty = SchemaProperty(self.id + '/properties/' + propertyname, propertyname, self.spec)
                 childproperty._property = propertyvalue
@@ -396,6 +404,7 @@ class SchemaProperty(Schema):
         super(SchemaProperty, self).__init__(id, name, spec)
         self._classname = self._packagename + '.property'
         self._property = None
+        self._datatype = None
 
         if self.path and not self._property:
             key = self.path.replace('/', '.')
@@ -414,7 +423,10 @@ class SchemaProperty(Schema):
     
     @property
     def datatype(self):
-        return self.val.get('type')
+        if not self._datatype:
+            return self.val.get('type')
+        else:
+            return self._datatype
 
     @property
     def dataformat(self):
