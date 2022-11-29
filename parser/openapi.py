@@ -7,7 +7,7 @@ from prance import ResolvingParser
 from model.model import OpenAPIModel
 
 class OpenAPIParser():
-    def __init__(self, endpoint, filepath, dir):
+    def __init__(self, endpoint, spec_string, dir):
         self._endpoint = endpoint
         self._info = 'Info'
 

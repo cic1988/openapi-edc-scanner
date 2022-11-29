@@ -9,7 +9,7 @@ from parser.preprocessing import Preprocessor
 
 logger = logging.getLogger(__name__)
 
-def execute(args):    
+def execute(args):
     import os
 
     if not os.path.exists(args.output):
