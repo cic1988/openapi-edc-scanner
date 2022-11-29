@@ -35,6 +35,21 @@ class OpenAPIParser():
         from functools import reduce
         return reduce(lambda d, key: d.get(key, default) if isinstance(d, dict) else default, keys.split("."), self._spec)
     
+    def safe_find_ref(self, ref):
+        ref = ref.replace('#/', '')
+        ref = ref.replace('/', '.')
+        return self.safe_get(ref, default=None)
+    
+    def safe_find_schema_allof(self, allOf):
+        for item in allOf:
+            if '$ref' in item:
+                return self.safe_find_ref(item['$ref'])
+
+    def safe_get_attribute_allof(self, allOf):
+        for item in allOf:
+            if 'properties' in item:
+                return item['properties']
+    
     def convert_objects(self, force=False):
         """ create objects.csv """
         import os
@@ -173,7 +188,29 @@ class OpenAPIParser():
             schema['core.description'] = schema['identity']
             writer.writerow(schema)
 
-            for propertyname, propertyvalue in schemavalue['properties'].items():
+            properties = None
+
+            # handle 'allOf':
+            # 1) inherit all attributes from parent schema
+            # 2) build lineage between them
+            if 'allOf' in schemavalue:
+                parentschema = self.safe_find_schema_allof(schemavalue['allOf'])
+
+                if parentschema:
+                    properties = dict(parentschema['properties'])
+
+                    # 3) additional attributes
+                    additionals = self.safe_get_attribute_allof(schemavalue['allOf'])
+                    properties.update(additionals)
+                else:
+                    logger.error(f'[ERROR] {schemaname} allOf applied to invalid parent schema')
+                    continue
+            else:
+                if 'properties' not in schemavalue:
+                    continue
+                properties = schemavalue['properties']
+
+            for propertyname, propertyvalue in properties.items():
                 # Recursive nested data object possible, e.g.,
                 # "Pet": {
                 #    "properties": {
@@ -249,7 +286,43 @@ class OpenAPIParser():
                 endpointschema['toObjectIdentity'] = endpointschema['fromObjectIdentity'] + '/' + schemaname
             writer.writerow(endpointschema)
 
-            for propertyname, propertyvalue in schemavalue['properties'].items():
+            properties = None
+            parentschemaname = None
+            parentschema = None
+
+            # handle 'allOf':
+            # 1) inherit all attributes from parent schema
+            # 2) build lineage between them
+            if 'allOf' in schemavalue:
+                parentschema = self.safe_find_schema_allof(schemavalue['allOf'])
+
+                if parentschema:
+                    parentschemaname = list(schemas.keys())[list(schemas.values()).index(parentschema)]
+
+                    if not parentschemaname:
+                        logger.error(f'[ERROR] parent schema {parentschemaname} not found in schemas')
+                        continue
+                    
+                    parentschematothis = copy.deepcopy(self._links_head)
+                    parentschematothis['association'] = self._model._association_datasetdataflow
+                    parentschematothis['fromObjectIdentity'] = self._endpoint + '/components/schemas/' + parentschemaname
+                    parentschematothis['toObjectIdentity'] = endpointschema['toObjectIdentity']
+                    writer.writerow(parentschematothis)
+
+                    properties = dict(parentschema['properties'])
+
+                    # 3) additional attributes
+                    additionals = self.safe_get_attribute_allof(schemavalue['allOf'])
+                    properties.update(additionals)
+                else:
+                    logger.error(f'[ERROR] {schemaname} allOf applied to invalid parent schema')
+                    continue
+            else:
+                if 'properties' not in schemavalue:
+                    continue
+                properties = schemavalue['properties']
+
+            for propertyname, propertyvalue in properties.items():
 
                 if propertyvalue.get('type') == 'object':
 
@@ -281,6 +354,16 @@ class OpenAPIParser():
                 schemaproperty['fromObjectIdentity'] = endpointschema['toObjectIdentity']
                 schemaproperty['toObjectIdentity'] = schemaproperty['fromObjectIdentity'] + '/' + propertyname
                 writer.writerow(schemaproperty)
+
+                # handle 'allOf'
+                # lineage from parent to this schema
+                if parentschemaname and propertyname in parentschema['properties']:
+                    parentproptothis = copy.deepcopy(self._links_head)
+                    parentproptothis['association'] = self._model._association_directionaldataflow
+                    parentproptothis['fromObjectIdentity'] = self._endpoint + '/components/schemas/' + parentschemaname + '/' + propertyname
+                    parentproptothis['toObjectIdentity'] = schemaproperty['toObjectIdentity']
+                    writer.writerow(parentproptothis)
+
     
     def convert_links_endpointpathitemoperation(self, writer):
         paths = self.safe_get('paths')
