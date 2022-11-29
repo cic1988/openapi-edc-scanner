@@ -10,13 +10,19 @@ class OpenAPIParser():
     def __init__(self, endpoint, spec_string, dir):
         self._endpoint = endpoint
         self._info = 'Info'
+    def __init__(self, endpoint, spec_string, dir, debug=False):
+        parser = ResolvingParser(spec_string=spec_string)
 
         """ objects.csv / links.csv protocol """
         self._objects_head = {}
         self._links_head = {}
         self._model = OpenAPIModel()
+        if debug:
+            import json
+            import os
+            with open(os.path.join(dir, 'processed_' + endpoint), 'w') as fp:
+                json.dump(parser.specification, fp)
 
-        parser = ResolvingParser(filepath, resolve_types=0)
         self._spec = parser.specification
         self._dir = dir
 

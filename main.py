@@ -37,7 +37,7 @@ def execute(args):
         if spec_json.endswith(".json"):
             logger.info(f'[INFO] About to process {spec_json}')
             processor = Preprocessor(os.path.join(args.input, spec_json), args.output)
-            parser = OpenAPIParser(spec_json, processor.fix(), args.output)
+            parser = OpenAPIParser(spec_json, processor.fix(), args.output, args.debug)
 
             try:
                 parser.convert_objects(False)
@@ -115,6 +115,7 @@ def _parse_args(argv):
     parser = ArgumentParser()
     parser.add_argument('--input', default=None, type=str, help='directory where openapi spec json files are stored')
     parser.add_argument('--output', default=None, type=str, help='directory to save objects.csv and links.csv')
+    parser.add_argument('--debug', default=False, type=bool, help='debug option. for example create additional spec validation file')
     parser.set_defaults(func=execute)
 
     args = parser.parse_args(argv[1:])
