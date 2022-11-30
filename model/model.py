@@ -14,7 +14,7 @@ class OpenAPIModel():
             'fromObjectIdentity': '',
             'toObjectIdentity': ''
         }
-        self._packagename = 'com.informatica.ldm.openapi'
+        self._packagename = OpenAPIModel.packagename()
 
         """ association """
         self._association_resourceparanchild = 'core.ResourceParentChild'
@@ -48,6 +48,10 @@ class OpenAPIModel():
             self._association_endpointpathitem: [],
             self._association_pathitemoperation: []
         }
+    
+    @staticmethod
+    def packagename():
+        return 'com.informatica.ldm.openapi'
     
     @property
     def object_csv_header(self):
@@ -107,7 +111,7 @@ class OpenAPIModel():
                 self._associations[self._association_schemaproperty].append({
                     'fromObjectIdentity': schema.id,
                     'toObjectIdentity': child.id
-                })                
+                })
             else:
                 logger.warning(f'[WARNING] unknown type of {child.path} detected')
 
@@ -130,6 +134,7 @@ class OpenAPIModel():
 
         toplevelschemas = self.safe_get('components.schemas', self._spec)
         for schemaname, schemavalue in toplevelschemas.items():
+            # TODO: if the toplevel already has schema array?
             schema = Schema(endpoint + '/components/schemas/' + schemaname, schemaname, self._spec)
             self.build_schema(schema)
 
@@ -163,7 +168,7 @@ class OpenAPIModel():
 
 class Identifier():
     def __init__(self, id, name, description=None, spec=None):
-        self._packagename = 'com.informatica.ldm.openapi'
+        self._packagename = OpenAPIModel.packagename()
         self._classname = ''
         self._id = id
         self._path = ''
@@ -182,6 +187,7 @@ class Identifier():
         self._attr_infolicensename = self._packagename + '.infolicensename'
         self._attr_externaldocs_url = self._packagename + '.externaldocsurl'
         self._attr_property_example = self._packagename + '.propertyexample'
+        self._attr_isarray = self._packagename + '.schemapropertyarray'
 
         """ 2) base attribute (inherited from base model) """
         self._attr_property_primarykey = 'com.infa.ldm.relational.PrimaryKeyColumn'
@@ -279,7 +285,7 @@ class Info(Identifier):
     @property
     def version(self):
         return OpenAPIModel.safe_get('info.version', self._spec)
-    
+
     def build(self):
         super(Info, self).build()
         info = copy.deepcopy(self._objects_head)
@@ -322,6 +328,7 @@ class Schema(Identifier):
         self._description = ''
         self._children_initialized = False
         self._children = []
+        self._isarray = False
 
         import re
         regex = 'components\/schemas\/\S+'
@@ -338,12 +345,27 @@ class Schema(Identifier):
     def schemavalue(self):
         return self._schemavalue
     
+    @property
+    def description(self):
+        if super(Schema, self).description:
+            return super(Schema, self).description
+        
+        if self.schemavalue:
+            return OpenAPIModel.safe_get('description', self.schemavalue)
+
+        return ''
+    
+    @property
+    def isarray(self):
+        return self._isarray
+    
     def build(self):
         schema = copy.deepcopy(self._objects_head)
         schema['class'] = self.classname
         schema['core.name'] = self.name
         schema['identity'] = self.id
         schema['core.description'] = self.description
+        schema[self._attr_isarray] = self.isarray
         return schema
     
     # children could be property or schema
@@ -360,7 +382,6 @@ class Schema(Identifier):
         # handle inheritage:
         # 1) 'allOf':
         if 'allOf' in self.schemavalue:
-            handleAllOf = True
             properties = dict()
 
             for block in self.schemavalue['allOf']:
@@ -382,14 +403,16 @@ class Schema(Identifier):
                 childschema = Schema(self.id + '/properties/' + propertyname, propertyname, self.spec)
                 childschema._schemavalue = propertyvalue
                 self._children.append(childschema)
-            elif 'items' in propertyvalue and 'properties' in propertyvalue['items']:
+            elif propertyvalue.get('type') == 'array' and 'items' in propertyvalue and 'properties' in propertyvalue['items']:
                 childschema = Schema(self.id + '/properties/' + propertyname, propertyname, self.spec)
                 childschema._schemavalue = propertyvalue['items']
+                childschema._description = propertyvalue.get('description')
+                childschema._isarray = True
                 self._children.append(childschema)
             elif 'items' in propertyvalue and 'properties' not in propertyvalue['items']:
                 childproperty = SchemaProperty(self.id + '/properties/' + propertyname, propertyname, self.spec)
-                childproperty._property = propertyvalue
-                childproperty._datatype = 'array-' + propertyvalue['items'].get('type')
+                childproperty._property = propertyvalue['items']
+                childproperty._isarray = True
                 self._children.append(childproperty)
             else:
                 childproperty = SchemaProperty(self.id + '/properties/' + propertyname, propertyname, self.spec)
@@ -436,13 +459,13 @@ class SchemaProperty(Schema):
     def build(self):
         prop = copy.deepcopy(self._objects_head)
         prop['class'] = self.classname
-
         prop['core.name'] = self.name
         prop['identity'] = self.id
         prop['core.description'] = self.description
         prop[self._attr_property_datatype] = self.datatype
         prop[self._attr_property_dataformat] = self.dataformat
         prop[self._attr_property_example] = self.example
+        prop[self._attr_isarray] = self.isarray
         return prop
 
 class PathItem(Identifier):
