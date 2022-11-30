@@ -416,9 +416,6 @@ class SchemaProperty(Schema):
     
     @property
     def description(self):
-        if not self.val:
-            print(self.id)
-            print(self._property)
         return self.val.get('description')
     
     @property
