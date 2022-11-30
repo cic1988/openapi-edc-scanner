@@ -8,7 +8,7 @@
             <version>1</version>
         </requiredPackage>
     </requiredPackages>
-    <version>17</version>
+    <version>18</version>
     <classes>
         <class>
             <name>endpoint</name>
@@ -210,7 +210,7 @@
             <dataType>core.String</dataType>
             <searchable>false</searchable>
             <facetable>false</facetable>
-            <analyzer>STRING</analyzer>
+            <analyzer>TEXT_GENERAL</analyzer>
             <boost>LOW</boost>
             <description></description>
             <multivalued>false</multivalued>

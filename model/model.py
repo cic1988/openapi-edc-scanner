@@ -1,4 +1,5 @@
 import copy
+import json
 import logging
 logger = logging.getLogger(__name__)
 
@@ -329,6 +330,7 @@ class Schema(Identifier):
         self._children_initialized = False
         self._children = []
         self._isarray = False
+        self._example = ''
 
         import re
         regex = 'components\/schemas\/\S+'
@@ -366,6 +368,7 @@ class Schema(Identifier):
         schema['identity'] = self.id
         schema['core.description'] = self.description
         schema[self._attr_isarray] = self.isarray
+        schema[self._attr_property_example] = self._example
         return schema
     
     # children could be property or schema
@@ -408,6 +411,13 @@ class Schema(Identifier):
                 childschema._schemavalue = propertyvalue['items']
                 childschema._description = propertyvalue.get('description')
                 childschema._isarray = True
+                examples = propertyvalue.get('example')
+
+                if examples:
+                    for example in examples:
+                        childschema._example = json.dumps(example)
+                        break
+
                 self._children.append(childschema)
             elif 'items' in propertyvalue and 'properties' not in propertyvalue['items']:
                 childproperty = SchemaProperty(self.id + '/properties/' + propertyname, propertyname, self.spec)
